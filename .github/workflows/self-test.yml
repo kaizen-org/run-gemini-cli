@@ -16,4 +16,4 @@ jobs:
         uses: ./
         with:
           prompt: "Hola ¿Que tal estas?"
-          litellm_gemini_api_key: ${{ secrets.LITELLM_KEY }}
+          litellm_gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
