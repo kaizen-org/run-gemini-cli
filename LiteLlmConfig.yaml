@@ -11,9 +11,10 @@ litellm_settings:
 
 # Configuración del límite de peticiones
 rate_limiting_settings:
-  # Limitar a 30 peticiones por minuto para el modelo gemini-pro
+  # Limitar a 59 peticiones por minuto para el modelo gemini-pro
   - model: gemini-pro
-    requests_per_minute: 30
+    requests_per_minute: 59
+    
 
 # Server Settings
 server_settings:
