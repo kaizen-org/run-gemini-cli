@@ -130,7 +130,7 @@ runs:
         set -euo pipefail
 
         echo "Installing LiteLLM..."
-        pip install litellm
+        pip install 'litellm[proxy]'
         echo "LiteLLM installed."
 
         VERSION_INPUT="${GEMINI_CLI_VERSION:-latest}"
