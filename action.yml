@@ -64,6 +64,9 @@ inputs:
   gemini_model:
     description: 'The model to use with Gemini.'
     required: false
+  litellm_gemini_api_key:
+    description: 'The Gemini API key to be used by LiteLLM.'
+    required: false
 
 outputs:
   summary:
@@ -111,20 +114,24 @@ runs:
         sed "s/OTLP_GOOGLE_CLOUD_PROJECT/${OTLP_GOOGLE_CLOUD_PROJECT}/g" "${GITHUB_ACTION_PATH}/scripts/collector-gcp.yaml.template" > ".gemini/collector-gcp.yaml"
 
         chmod 444 "$GOOGLE_APPLICATION_CREDENTIALS"
-        docker run -d --name gemini-telemetry-collector --network host \
-          -v "${GITHUB_WORKSPACE}:/github/workspace" \
-          -e "GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS/$GITHUB_WORKSPACE//github/workspace}" \
-          -w "/github/workspace" \
-          otel/opentelemetry-collector-contrib:0.128.0 \
+        docker run -d --name gemini-telemetry-collector --network host 
+          -v "${GITHUB_WORKSPACE}:/github/workspace" 
+          -e "GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS/$GITHUB_WORKSPACE//github/workspace}" 
+          -w "/github/workspace" 
+          otel/opentelemetry-collector-contrib:0.128.0 
           --config /github/workspace/.gemini/collector-gcp.yaml
 
-    - name: 'Install Gemini CLI'
+    - name: 'Install Gemini CLI and LiteLLM'
       id: 'install'
       env:
         GEMINI_CLI_VERSION: '${{ inputs.gemini_cli_version }}'
       shell: 'bash'
       run: |-
         set -euo pipefail
+
+        echo "Installing LiteLLM..."
+        pip install litellm
+        echo "LiteLLM installed."
 
         VERSION_INPUT="${GEMINI_CLI_VERSION:-latest}"
 
@@ -141,12 +148,25 @@ runs:
           npm install --silent --no-audit --prefer-offline --global .
         fi
         echo "Verifying installation:"
-        if command -v gemini >/dev/null 2>&1; then
+        if command -v gemini >/dev/null 2>&1;
+        then
           gemini --version || echo "Gemini CLI installed successfully (version command not available)"
         else
           echo "Error: Gemini CLI not found in PATH"
           exit 1
         fi
+
+    - name: 'Start LiteLLM Proxy'
+      shell: 'bash'
+      env:
+        GEMINI_API_KEY: ${{ inputs.litellm_gemini_api_key }}
+      run: |-
+        set -euo pipefail
+        echo "Starting LiteLLM proxy on port 8080..."
+        litellm --config LiteLlmConfig.yaml &
+        # Add a small delay to ensure the server has time to start
+        sleep 5
+        echo "LiteLLM proxy started."
 
     - name: 'Run Gemini CLI'
       id: 'gemini_run'
@@ -172,7 +192,8 @@ runs:
         FAILED=false
 
         # Run Gemini CLI with the provided prompt, streaming responses in debug
-        if [[ "${DEBUG}" = true ]]; then
+        if [[ "${DEBUG}" = true ]]
+        then
           echo "::warning::Gemini CLI debug logging is enabled. This will stream responses, which could reveal sensitive information if processed with untrusted inputs."
           if ! { gemini --yolo --prompt "${PROMPT}" 2> >(tee "${TEMP_STDERR}" >&2) | tee "${TEMP_STDOUT}"; }; then
             FAILED=true
@@ -197,7 +218,8 @@ runs:
         echo "${GEMINI_ERRORS}" >> "${GITHUB_OUTPUT}"
         echo "EOF" >> "${GITHUB_OUTPUT}"
 
-        if [[ "${FAILED}" = true ]]; then
+        if [[ "${FAILED}" = true ]]
+        then
           LAST_LINE="$(echo "${GEMINI_ERRORS}" | tail -n1)"
           echo "::error title=Gemini CLI execution failed::${LAST_LINE}"
           echo "See logs for more details"

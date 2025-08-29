@@ -1,0 +1,23 @@
+# LiteLLM Configuration File
+model_list:
+  - model_name: gemini-pro
+    litellm_params:
+      model: gemini/gemini-pro
+      api_key: os.environ/GEMINI_API_KEY
+
+litellm_settings:
+  # ... otras configuraciones
+  set_verbose: true
+
+# Configuración del límite de peticiones
+rate_limiting_settings:
+  # Limitar a 30 peticiones por minuto para el modelo gemini-pro
+  - model: gemini-pro
+    requests_per_minute: 30
+
+# Server Settings
+server_settings:
+  # The port to run the LiteLLM proxy server on
+  port: 8080
+  # The host to bind the server to
+  host: "0.0.0.0"
