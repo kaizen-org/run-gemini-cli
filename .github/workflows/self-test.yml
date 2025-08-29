@@ -1,0 +1,19 @@
+name: Run Gemini CLI Action on Push
+
+on:
+  push:
+    branches:
+      - main # Or your default branch
+
+jobs:
+  run_action:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Gemini CLI Action
+        uses: ./
+        with:
+          prompt: "This is a test prompt from the self-test workflow."
+          litellm_gemini_api_key: ${{ secrets.LITELLM_KEY }}
