@@ -230,7 +230,7 @@ runs:
       env:
         GOOGLE_GEMINI_BASE_URL: 'http://localhost:4000'
         DEBUG: '${{ fromJSON(inputs.gemini_debug || false) }}'
-        GEMINI_API_KEY: 'abcde'
+
         SURFACE: 'GitHub'
         GOOGLE_CLOUD_PROJECT: '${{ inputs.gcp_project_id }}'
         GOOGLE_CLOUD_LOCATION: '${{ inputs.gcp_location }}'
