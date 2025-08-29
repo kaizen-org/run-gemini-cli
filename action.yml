@@ -165,7 +165,7 @@ runs:
       run: |-
         set -euo pipefail
         echo "Starting LiteLLM proxy on port 8080..."
-        litellm --config LiteLlmConfig.yaml &
+        litellm --config LiteLlmConfig.yaml --debug &
         # Add a small delay to ensure the server has time to start
         sleep 5
         echo "LiteLLM proxy started."
