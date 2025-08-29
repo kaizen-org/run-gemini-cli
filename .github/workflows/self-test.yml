@@ -15,5 +15,5 @@ jobs:
       - name: Run Gemini CLI Action
         uses: ./
         with:
-          prompt: "This is a test prompt from the self-test workflow."
+          prompt: "Hola ¿Que tal estas?"
           litellm_gemini_api_key: ${{ secrets.LITELLM_KEY }}
