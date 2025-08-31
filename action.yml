@@ -79,47 +79,32 @@ outputs:
 runs:
   using: 'composite'
   steps:
-    - name: 'Configure Gemini CLI'
-      if: |-
-        ${{ inputs.settings != '' }}
-      run: |-
-        mkdir -p .gemini/
-        echo "${SETTINGS}" > ".gemini/settings.json"
+    - name: Copiar carpeta a HOME en Linux/macOS
+      run: cp -r .gemini $HOME
       shell: 'bash'
-      env:
-        SETTINGS: '${{ inputs.settings }}'
+    #- name: 'Configure Gemini CLI'
+    #  if: |-
+    #    ${{ inputs.settings != '' }}
+    #  run: |-  
+    #    mkdir -p .gemini/
+    #    echo "${SETTINGS}" > ".gemini/settings.json"
+    #  shell: 'bash'
+    #  env:
+    #    SETTINGS: '${{ inputs.settings }}'
 
-    - name: 'Authenticate to Google Cloud'
-      if: |-
-        ${{ inputs.gcp_workload_identity_provider != '' }}
-      id: 'auth'
-      uses: 'google-github-actions/auth@v2' # ratchet:exclude
-      with:
-        project_id: '${{ inputs.gcp_project_id }}'
-        workload_identity_provider: '${{ inputs.gcp_workload_identity_provider }}'
-        service_account: '${{ inputs.gcp_service_account }}'
-        token_format: 'access_token'
-        access_token_scopes: 'https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/userinfo.email,https://www.googleapis.com/auth/userinfo.profile'
+    #- name: 'Authenticate to Google Cloud'
+    #  if: |-
+    #    ${{ inputs.gcp_workload_identity_provider != '' }}
+    #  id: 'auth'
+    #  uses: 'google-github-actions/auth@v2' # ratchet:exclude
+    #  with:
+    #    project_id: '${{ inputs.gcp_project_id }}'
+    #    workload_identity_provider: '${{ inputs.gcp_workload_identity_provider }}'
+    #    service_account: '${{ inputs.gcp_service_account }}'
+    #    token_format: 'access_token'
+    #    access_token_scopes: 'https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/userinfo.email,https://www.googleapis.com/auth/userinfo.profile'
 
-    - name: 'Run Telemetry Collector for Google Cloud'
-      if: |-
-        ${{ inputs.gcp_workload_identity_provider != '' }}
-      env:
-        OTLP_GOOGLE_CLOUD_PROJECT: '${{ inputs.gcp_project_id }}'
-        GITHUB_ACTION_PATH: '${{ github.action_path }}'
-      shell: 'bash'
-      run: |-
-        set -euo pipefail
-        mkdir -p .gemini/
-        sed "s/OTLP_GOOGLE_CLOUD_PROJECT/${OTLP_GOOGLE_CLOUD_PROJECT}/g" "${GITHUB_ACTION_PATH}/scripts/collector-gcp.yaml.template" > ".gemini/collector-gcp.yaml"
-
-        chmod 444 "$GOOGLE_APPLICATION_CREDENTIALS"
-        docker run -d --name gemini-telemetry-collector --network host 
-          -v "${GITHUB_WORKSPACE}:/github/workspace" 
-          -e "GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS/$GITHUB_WORKSPACE//github/workspace}" 
-          -w "/github/workspace" 
-          otel/opentelemetry-collector-contrib:0.128.0 
-          --config /github/workspace/.gemini/collector-gcp.yaml
+   
 
     - name: 'Install Gemini CLI and LiteLLM'
       id: 'install'
@@ -129,9 +114,9 @@ runs:
       run: |-
         set -euo pipefail
 
-        echo "Installing LiteLLM..."
-        pip install 'litellm[proxy]'
-        echo "LiteLLM installed."
+        # echo "Installing LiteLLM..."
+        # pip install 'litellm[proxy]'
+        # echo "LiteLLM installed."
 
         VERSION_INPUT="${GEMINI_CLI_VERSION:-latest}"
 
@@ -158,17 +143,17 @@ runs:
           exit 1
         fi
 
-    - name: 'Start LiteLLM Proxy'
-      shell: 'bash'
-      env:
-        GEMINI_API_KEY: ${{ inputs.litellm_gemini_api_key }}
-      run: |-
-        set -euo pipefail
-        echo "Starting LiteLLM proxy on port 8080..."
-        litellm --config LiteLlmConfig.yaml --debug &
-        # Add a small delay to ensure the server has time to start
-        sleep 5
-        echo "LiteLLM proxy started."
+    #- name: 'Start LiteLLM Proxy'
+    #  shell: 'bash'
+    #  env:
+    #    GEMINI_API_KEY: ${{ inputs.litellm_gemini_api_key }}
+    #  run: |-
+    #    set -euo pipefail
+    #    echo "Starting LiteLLM proxy on port 8080..."
+    #    litellm --config LiteLlmConfig.yaml --debug &
+    #    # Add a small delay to ensure the server has time to start
+    #    sleep 5
+    #    echo "LiteLLM proxy started."
 
     - name: 'Run Gemini CLI'
       id: 'gemini_run'
@@ -223,7 +208,7 @@ runs:
           exit 1
         fi
       env:
-        GOOGLE_GEMINI_BASE_URL: 'http://localhost:4000'
+        #GOOGLE_GEMINI_BASE_URL: 'http://localhost:4000'
         DEBUG: '${{ fromJSON(inputs.gemini_debug || false) }}'
 
         GEMINI_API_KEY: '${{ inputs.gemini_api_key }}'
