@@ -79,8 +79,12 @@ outputs:
 runs:
   using: 'composite'
   steps:
-    - name: Copiar carpeta a HOME en Linux/macOS
-      run: cp -r .gemini $HOME
+    - name: 'Copy and rename user settings'
+      run: |-
+        if [ -d ".gemini_user" ]; then
+          rm -rf "$HOME/.gemini"
+          cp -r .gemini_user "$HOME/.gemini"
+        fi
       shell: 'bash'
     #- name: 'Configure Gemini CLI'
     #  if: |-
@@ -106,7 +110,7 @@ runs:
 
    
 
-    - name: 'Install Gemini CLI and LiteLLM'
+    - name: 'Install Gemini CLI'
       id: 'install'
       env:
         GEMINI_CLI_VERSION: '${{ inputs.gemini_cli_version }}'
