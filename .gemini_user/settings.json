@@ -1,0 +1,41 @@
+{
+  "selectedAuthType": "oauth-personal",
+  "theme": "Dracula",
+  "preferredEditor": "vscode",
+  "hideBanner": true,
+  "mcpServers": {
+    "MongoDB": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mongodb-mcp-server"
+      ]
+    },
+    "atlassian": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "https://mcp.atlassian.com/v1/sse"
+      ]
+    },
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "@playwright/mcp@latest"
+      ]
+    },
+     "playwright-lmes": {
+      "command": "npx",
+      "args": [
+        "@playwright/mcp@latest",
+        "--browser", 
+        "chromium",
+        "--headed", 
+        "--user-data-dir=C:\\Users\\gabriel.casas\\AppData\\Local\\Google\\Chrome\\User Data\\Profile 1"
+      ]
+    }
+  },
+  "hasSeenIdeIntegrationNudge": true,
+  "ideMode": true
+}
