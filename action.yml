@@ -80,8 +80,10 @@ runs:
   using: 'composite'
   steps:
     - name: 'Copy and rename user settings'
+      id: 'copy_settings'     
       run: |-
         if [ -d ".gemini_user" ]; then
+          echo "Found .gemini_user directory. Restoring user settings."
           rm -rf "$HOME/.gemini"
           cp -r .gemini_user "$HOME/.gemini"
           for file in "$HOME"/.gemini/*; do
@@ -89,6 +91,13 @@ runs:
               openssl enc -d -aes-256-cbc -in "$file" -out "$file.tmp" -k gemini 2>/dev/null && mv "$file.tmp" "$file"
             fi
           done
+          echo "User settings restored."
+        fi
+        if [ -f ".github/workflows/settings.json" ]; then
+          echo "Found project settings file at .github/workflows/settings.json."
+          mkdir -p "$HOME/.gemini"
+          cp ".github/workflows/settings.json" "$HOME/.gemini/settings.json"
+          echo "Project settings copied to $HOME/.gemini/settings.json."
         fi
       shell: 'bash'
     #- name: 'Configure Gemini CLI'
