@@ -1,0 +1,236 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: 'Run Gemini CLI'
+author: 'Google LLC'
+description: |-
+  Invoke the Gemini CLI from a GitHub Action.
+
+inputs:
+  prompt:
+    description: |-
+      A string passed to the Gemini CLI's [`--prompt` argument](https://github.com/google-gemini/gemini-cli/blob/main/docs/cli/configuration.md#command-line-arguments).
+    required: false
+    default: 'You are a helpful assistant.'
+  settings:
+    description: |-
+      A JSON string written to `.gemini/settings.json` to configure the CLI's _project_ settings.
+      For more details, see the documentation on [settings files](https://github.com/google-gemini/gemini-cli/blob/main/docs/cli/configuration.md#settings-files).
+    required: false
+  gemini_api_key:
+    description: 'The API key for the Gemini API.'
+    required: false
+  gcp_project_id:
+    description: 'The Google Cloud project ID.'
+    required: false
+  gcp_location:
+    description: 'The Google Cloud location.'
+    required: false
+  gcp_workload_identity_provider:
+    description: 'The Google Cloud Workload Identity Provider.'
+    required: false
+  gcp_service_account:
+    description: 'The Google Cloud service account email.'
+    required: false
+  use_vertex_ai:
+    description: 'A flag to indicate if Vertex AI should be used.'
+    required: false
+    default: 'false'
+  use_gemini_code_assist:
+    description: 'A flag to indicate if Gemini Code Assist should be used.'
+    required: false
+    default: 'false'
+  gemini_cli_version:
+    description: 'The version of the Gemini CLI to install.'
+    required: false
+    default: 'latest'
+  google_api_key:
+    description: 'The Vertex AI API key to use with Gemini.'
+    required: false
+  gemini_debug:
+    description: 'Enable debug logging and output streaming.'
+    required: false
+  gemini_model:
+    description: 'The model to use with Gemini.'
+    required: false
+  litellm_gemini_api_key:
+    description: 'The Gemini API key to be used by LiteLLM.'
+    required: false
+
+outputs:
+  summary:
+    description: 'The summarized output from the Gemini CLI execution.'
+    value: '${{ steps.gemini_run.outputs.gemini_response }}'
+  error:
+    description: 'The error output from the Gemini CLI execution, if any.'
+    value: '${{ steps.gemini_run.outputs.gemini_errors }}'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 'Copy and rename user settings'
+      run: |-
+        if [ -d ".gemini_user" ]; then
+          rm -rf "$HOME/.gemini"
+          cp -r .gemini_user "$HOME/.gemini"
+          for file in "$HOME"/.gemini/*; do
+            if [ -f "$file" ]; then
+              openssl enc -d -aes-256-cbc -in "$file" -out "$file.tmp" -k gemini 2>/dev/null && mv "$file.tmp" "$file"
+            fi
+          done
+        fi
+      shell: 'bash'
+    #- name: 'Configure Gemini CLI'
+    #  if: |-
+    #    ${{ inputs.settings != '' }}
+    #  run: |-  
+    #    mkdir -p .gemini/
+    #    echo "${SETTINGS}" > ".gemini/settings.json"
+    #  shell: 'bash'
+    #  env:
+    #    SETTINGS: '${{ inputs.settings }}'
+
+    #- name: 'Authenticate to Google Cloud'
+    #  if: |-
+    #    ${{ inputs.gcp_workload_identity_provider != '' }}
+    #  id: 'auth'
+    #  uses: 'google-github-actions/auth@v2' # ratchet:exclude
+    #  with:
+    #    project_id: '${{ inputs.gcp_project_id }}'
+    #    workload_identity_provider: '${{ inputs.gcp_workload_identity_provider }}'
+    #    service_account: '${{ inputs.gcp_service_account }}'
+    #    token_format: 'access_token'
+    #    access_token_scopes: 'https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/userinfo.email,https://www.googleapis.com/auth/userinfo.profile'
+
+   
+
+    - name: 'Install Gemini CLI'
+      id: 'install'
+      env:
+        GEMINI_CLI_VERSION: '${{ inputs.gemini_cli_version }}'
+      shell: 'bash'
+      run: |-
+        set -euo pipefail
+
+        # echo "Installing LiteLLM..."
+        # pip install 'litellm[proxy]'
+        # echo "LiteLLM installed."
+
+        VERSION_INPUT="${GEMINI_CLI_VERSION:-latest}"
+
+        if [[ "${VERSION_INPUT}" == "latest" || "${VERSION_INPUT}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9\.-]+)?(\+[a-zA-Z0-9\.-]+)?$ ]]; then
+          echo "Installing Gemini CLI from npm: @google/gemini-cli@${VERSION_INPUT}"
+          npm install --silent --no-audit --prefer-offline --global @google/gemini-cli@"${VERSION_INPUT}"
+        else
+          echo "Installing Gemini CLI from GitHub: github:google-gemini/gemini-cli#${VERSION_INPUT}"
+          (
+            git clone https://github.com/google-gemini/gemini-cli.git
+            cd gemini-cli
+            git checkout "${VERSION_INPUT}"
+            npm install
+            npm run bundle
+            npm install --silent --no-audit --prefer-offline --global .
+          )
+        fi
+        echo "Verifying installation:"
+        if command -v gemini >/dev/null 2>&1;
+        then
+          gemini --version || echo "Gemini CLI installed successfully (version command not available)"
+        else
+          echo "Error: Gemini CLI not found in PATH"
+          exit 1
+        fi
+
+    #- name: 'Start LiteLLM Proxy'
+    #  shell: 'bash'
+    #  env:
+    #    GEMINI_API_KEY: ${{ inputs.litellm_gemini_api_key }}
+    #  run: |-
+    #    set -euo pipefail
+    #    echo "Starting LiteLLM proxy on port 8080..."
+    #    litellm --config LiteLlmConfig.yaml --debug &
+    #    # Add a small delay to ensure the server has time to start
+    #    sleep 5
+    #    echo "LiteLLM proxy started."
+
+    - name: 'Run Gemini CLI'
+      id: 'gemini_run'
+      shell: 'bash'
+      run: |-
+        set -euo pipefail
+
+        # Create a temporary directory for storing the output, and ensure it's
+        # cleaned up later
+        TEMP_STDOUT="$(mktemp -p "${RUNNER_TEMP}" gemini-out.XXXXXXXXXX)"
+        TEMP_STDERR="$(mktemp -p "${RUNNER_TEMP}" gemini-err.XXXXXXXXXX)"
+        function cleanup {
+          rm -f "${TEMP_STDOUT}" "${TEMP_STDERR}"
+        }
+        trap cleanup EXIT
+
+        # Keep track of whether we've failed
+        FAILED=false
+
+        # Run Gemini CLI with the provided prompt, streaming responses in debug
+        if [[ "${DEBUG}" = true ]]
+        then
+          echo "::warning::Gemini CLI debug logging is enabled. This will stream responses, which could reveal sensitive information if processed with untrusted inputs."
+          if ! { gemini --yolo --prompt "${PROMPT}" 2> >(tee "${TEMP_STDERR}" >&2) | tee "${TEMP_STDOUT}"; }; then
+            FAILED=true
+          fi
+        else
+          if ! gemini --yolo --prompt "${PROMPT}" 2> "${TEMP_STDERR}" 1> "${TEMP_STDOUT}"; then
+            FAILED=true
+          fi
+        fi
+
+        GEMINI_RESPONSE="$(cat "${TEMP_STDOUT}")"
+
+        # Set the captured response as a step output, supporting multiline
+        echo "gemini_response<<EOF" >> "${GITHUB_OUTPUT}"
+        echo "${GEMINI_RESPONSE}" >> "${GITHUB_OUTPUT}"
+        echo "EOF" >> "${GITHUB_OUTPUT}"
+
+        GEMINI_ERRORS="$(cat "${TEMP_STDERR}")"
+
+        # Set the captured errors as a step output, supporting multiline
+        echo "gemini_errors<<EOF" >> "${GITHUB_OUTPUT}"
+        echo "${GEMINI_ERRORS}" >> "${GITHUB_OUTPUT}"
+        echo "EOF" >> "${GITHUB_OUTPUT}"
+
+        if [[ "${FAILED}" = true ]]
+        then
+          LAST_LINE="$(echo "${GEMINI_ERRORS}" | tail -n1)"
+          echo "::error title=Gemini CLI execution failed::${LAST_LINE}"
+          echo "See logs for more details"
+          exit 1
+        fi
+      env:
+        #GOOGLE_GEMINI_BASE_URL: 'http://localhost:4000'
+        DEBUG: '${{ fromJSON(inputs.gemini_debug || false) }}'
+
+        GEMINI_API_KEY: '${{ inputs.gemini_api_key }}'
+        SURFACE: 'GitHub'
+        GOOGLE_CLOUD_PROJECT: '${{ inputs.gcp_project_id || env.GOOGLE_CLOUD_PROJECT }}'
+        GOOGLE_CLOUD_LOCATION: '${{ inputs.gcp_location }}'
+        GOOGLE_GENAI_USE_VERTEXAI: '${{ inputs.use_vertex_ai }}'
+        GOOGLE_API_KEY: '${{ inputs.google_api_key }}'
+        GOOGLE_GENAI_USE_GCA: '${{ inputs.use_gemini_code_assist }}'
+        GOOGLE_CLOUD_ACCESS_TOKEN: '${{steps.auth.outputs.access_token}}'
+        PROMPT: '${{ inputs.prompt }}'
+        GEMINI_MODEL: '${{ inputs.gemini_model }}'
+
+branding:
+  icon: 'terminal'
+  color: 'blue'
